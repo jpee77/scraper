@@ -1,6 +1,8 @@
 scraper
 =======
 
+https://github.com/jpee77/scraper.git
+
 scraper is a web crawler that gathers specific information
 #hxs.select('//a[contains(@href, "image")]/text()').re(r'Name:\s*(.*)')
 #reddit title selector
