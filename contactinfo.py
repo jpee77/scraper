@@ -2,6 +2,7 @@ import re
 import string
 import time
 import db
+#test
 
 #search for @domain
 #wget the entire contact page and save it

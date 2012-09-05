@@ -4,9 +4,10 @@ scraper
 https://github.com/jpee77/scraper.git
 
 scraper is a web crawler that gathers specific information
-#hxs.select('//a[contains(@href, "image")]/text()').re(r'Name:\s*(.*)')
-#reddit title selector
-#hxs.select('//a[@class="title "]/text()').extract()
+
+hxs.select('//a[contains(@href, "image")]/text()').re(r'Name:\s*(.*)')
+reddit title selector
+hxs.select('//a[@class="title "]/text()').extract()
 
 For time keeping: git commit -m "Remove some extra whitespace f:15"
 
