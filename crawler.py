@@ -56,6 +56,10 @@ class Crawler(object):
         
     def crawl(self):
         #Build up base/initial queue
+        #TODO: fix this
+
+        if self.verbose:
+            print "[-] Opening Fetcher with root: " + self.root + " and host: " + self.host
         page = Fetcher(self.root, self.host, self.verbose)
         page.fetch()
         q = Queue()
@@ -99,10 +103,12 @@ class Crawler(object):
                                 q.put(url)
                                 self.urls.append(url) 
                         if n > self.depth and self.depth > 0:
-                            print "[-] Breaking based on depth limit ..."
+                            if self.verbose:
+                                print "[-] Breaking based on depth limit ..."
                             break
                     else:
-                        print "[-] Not following: " + urlparse.urlparse(url)[1]
+                        if self.verbose:
+                            print "[-] Not following: " + urlparse.urlparse(url)[1]
                         
                 except Exception, e:
                     print "ERROR: Can't process url '%s' (%s)" % (url, e)

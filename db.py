@@ -11,4 +11,7 @@ def open_db():
 
 def close_db():
     global r_server
-    r_server.shutdown()
+    if r_server:
+        r_server.shutdown()
+    else:
+        raise("No r_server db conn to close")
