@@ -30,9 +30,10 @@ class Crawler(object):
         self.urls = []
         self.links = 0
         self.followed = 0
+        self.rootdom = ""
         
     def blacklisted(self,url):
-        extensions = ['bz2', 'gzip', 'tar', 'zip', 'rar', 'iso', 'avi', 'mov']
+        extensions = ['bz2', 'gzip', 'tar', 'zip', 'rar', 'iso', 'avi', 'mov', 'javascript']
         for ex in extensions:
             if ex in url:
                 return True
@@ -76,7 +77,7 @@ class Crawler(object):
             url_depth = url[0]
             theurl = url[1]
             
-            if url_depth >= self.depth:
+            if url_depth > self.depth:
                 if self.verbose:
                     print "[-] Breaking based on a depth limit of: " + str(self.depth)
                 break
@@ -91,15 +92,14 @@ class Crawler(object):
                         if len(host) == 0:
                             continue
                     if self.verbose: print "[-] host: " + host + " || self.host: " + self.host
-
-                    #if self.locked and re.match(".*%s" % self.host, host):                 
+                                   
                     if self.locked and self.compare_domains(self.host, host):
                         if self.verbose: print "[-] Enumerating " + host
                         followed.append(theurl)
                         self.followed += 1
                         page = Fetcher(theurl, self.host, self.verbose)
                         page.fetch(url_depth)
-                        for i, theurl in enumerate(page): #throw all the urls on the page crawled into the Q now 
+                        for i, theurl in enumerate(page): #this uses __get__item on Fetcher objects and returns fetcher.urls tuple 
                             if theurl not in self.urls: #check if url is already followed, if not put in Q
                                 self.links += 1
                                 q.put(theurl)
@@ -112,7 +112,6 @@ class Crawler(object):
                 except Exception, e:
                     print "ERROR: Can't process url '%s' (%s)" % (url, e)
                     print format_exc()
-        return self.host
 
 class Fetcher(object):
 
@@ -127,7 +126,13 @@ class Fetcher(object):
 
     def _addHeaders(self, request):
         request.add_header("User-Agent", AGENT)
-
+        
+    def checkSameRoot(self, url1, url2):
+        if urlparse.urlparse(url1)[1] == url2:
+            return True
+        else:
+            return False
+        
     def open(self):
         url = self.url
         try:
@@ -138,7 +143,7 @@ class Fetcher(object):
             return None
         return (request, handle)
 
-    def fetch(self, depth):
+    def fetch(self, depth): 
         request, handle = self.open()
         self._addHeaders(request)
         if handle:
@@ -169,7 +174,10 @@ class Fetcher(object):
                     if url not in self:
                         if self.verbose:
                             print "[-] Adding " + url + " with depth: " + str(depth+1)
-                        self.urls.append((depth+1, url))
+                        if self.checkSameRoot(url, self.root):
+                            self.urls.append((0, url))
+                        else:
+                            self.urls.append((depth+1, url))
 
 def getLinks(url):
     page = Fetcher(url)

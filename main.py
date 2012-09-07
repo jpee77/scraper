@@ -4,7 +4,9 @@ import csv
 import optparse
 import time
 import report
+import db
 from crawler import *
+import redis
 
 USAGE = "%prog [options] <url>"
 VERSION = "%prog v0.1" 
@@ -122,7 +124,7 @@ def main():
             print "Followed: %d" % crawler.followed
             print "Stats:    (%d/s after %0.2fs)" % (int(math.ceil(float(crawler.links) / tTime)), tTime)
         f.close()
-        rep = report.Report(rootdom)
+        rep = report.Report(crawler.host, crawler.urls)
         print rep.getEmails()
     
     elif single_page and url:
@@ -135,8 +137,7 @@ def main():
     
         print "Crawling %s (Max Depth: %d)" % (url, depth)
         crawler = Crawler(url, depth, verbose, extrap)
-        rootdom = crawler.crawl()
-        print "\n".join(crawler.urls)
+        crawler.crawl()
     
         eTime = time.time()
         tTime = eTime - sTime #start time minus end time
@@ -144,11 +145,18 @@ def main():
         print "Found:    %d" % crawler.links
         print "Followed: %d" % crawler.followed
         print "Stats:    (%d/s after %0.2fs)" % (int(math.ceil(float(crawler.links) / tTime)), tTime)
-        print "[-] rootdom: " + rootdom
-        rep = report.Report(rootdom)
-        print rep.getEmails()
+        print "[-] rootdom: " + crawler.host
+        rep = report.Report(crawler.host, crawler.urls) #passing in a tuple with depth
+        rep.getRelations()
+        #print rep.getEmails()
 
 if __name__ == "__main__":
     #for x in pull_info("linkpart.csv"): print x
+    red_serv = db.open_db()
+    try:
+        red_serv.set("test-key", 123456)
+    except(redis.exceptions.ConnectionError): 
+        print "[!] Redis server not listening on port 6379"
+        sys.exit(1)
     main()
     
