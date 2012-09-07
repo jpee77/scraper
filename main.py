@@ -132,7 +132,6 @@ def main():
             raise SystemExit, 0
     elif url:
         sTime = time.time()
-        #TODO: Ensure the redis server is already running
         #TODO: Change structure of redis to rootdom -> subnodes -> emails
     
         print "Crawling %s (Max Depth: %d)" % (url, depth)

@@ -2,6 +2,7 @@ scraper
 =======
 
 https://github.com/jpee77/scraper.git
+http://208.113.228.200:8080/trac
 
 scraper is a web crawler that gathers specific information
 
@@ -9,16 +10,15 @@ scraper is a web crawler that gathers specific information
 
 For time keeping: git commit -m "Remove some extra whitespace f:15"
 
-TODO: Seperate run-time switching for internal url and external url grabbing
-
 TODO: Create a breakdown of link hits and reporting and output to timestamped csv
   --output csv   [ searched url ] [ link on page ] [ number of times this link is shown  ] [ number of links containing domain ]
 
-TODO: Depth should be the number of times a link is followed from the base set of urls gathered on the page
-not the number of times the Q is pulled from
+TODO: Add remote error reporting for exceptions
 
+TODO: Depth 3 takes ages
 
-BUG: When accessing invalid links the program stalls out - threading waits at the Q for seemingly nothing?
+BUG: When accessing invalid links the program stalls out - threading waits at the Q for seemingly nothing? http://localhost/www.thomasnet.com
+
 
 =======================
 
