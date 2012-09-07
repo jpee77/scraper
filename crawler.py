@@ -55,36 +55,38 @@ class Crawler(object):
             pass
         
     def crawl(self):
-        #Build up base/initial queue
-        #TODO: fix this
 
         if self.verbose:
             print "[-] Opening Fetcher with root: " + self.root + " and host: " + self.host
         page = Fetcher(self.root, self.host, self.verbose)
-        page.fetch()
+        page.fetch(0)
         q = Queue()
         for url in page.urls:
-            q.put(url)
+            q.put(url) #TODO: Ensure this is unique
         followed = [self.root]
 
-        n = 0
-        #Iterate and expand on the Q
+
         while True:
             try:
                 url = q.get()
             except QueueEmpty:
                 break
 
-            #If depth is 30 then the Q is dug into 30 times - despite possible containing 3k urls. Depth is how 
-            #much we dip into the Q
+            #url = (0, 'http://www.google.com')
+            url_depth = url[0]
+            theurl = url[1]
             
-            n += 1 #run every time after self.urls.append(url) and the Q is added to
+            if url_depth >= self.depth:
+                if self.verbose:
+                    print "[-] Breaking based on a depth limit of: " + str(self.depth)
+                break
+
 
             #followed = list of whats been followed
             #urls = whats been placed in the Q    
-            if url not in followed and not self.blacklisted(url):
+            if theurl not in followed and not self.blacklisted(theurl):
                 try:
-                    host = urlparse.urlparse(url)[1]
+                    host = urlparse.urlparse(theurl)[1]
                     if host is not None:
                         if len(host) == 0:
                             continue
@@ -93,22 +95,19 @@ class Crawler(object):
                     #if self.locked and re.match(".*%s" % self.host, host):                 
                     if self.locked and self.compare_domains(self.host, host):
                         if self.verbose: print "[-] Enumerating " + host
-                        followed.append(url)
+                        followed.append(theurl)
                         self.followed += 1
-                        page = Fetcher(url, self.host, self.verbose)
-                        page.fetch()
-                        for i, url in enumerate(page): #throw all the urls on the page crawled into the Q now 
-                            if url not in self.urls: #check if url is already followed, if not put in Q
+                        page = Fetcher(theurl, self.host, self.verbose)
+                        page.fetch(url_depth)
+                        for i, theurl in enumerate(page): #throw all the urls on the page crawled into the Q now 
+                            if theurl not in self.urls: #check if url is already followed, if not put in Q
                                 self.links += 1
-                                q.put(url)
-                                self.urls.append(url) 
-                        if n > self.depth and self.depth > 0:
-                            if self.verbose:
-                                print "[-] Breaking based on depth limit ..."
-                            break
+                                q.put(theurl)
+                                self.urls.append(theurl) 
+
                     else:
                         if self.verbose:
-                            print "[-] Not following: " + urlparse.urlparse(url)[1]
+                            print "[-] Not following: " + urlparse.urlparse(theurl)[1]
                         
                 except Exception, e:
                     print "ERROR: Can't process url '%s' (%s)" % (url, e)
@@ -139,7 +138,7 @@ class Fetcher(object):
             return None
         return (request, handle)
 
-    def fetch(self):
+    def fetch(self, depth):
         request, handle = self.open()
         self._addHeaders(request)
         if handle:
@@ -168,11 +167,13 @@ class Fetcher(object):
                 if href is not None:
                     url = urlparse.urljoin(self.url, escape(href))
                     if url not in self:
-                        self.urls.append(url)
+                        if self.verbose:
+                            print "[-] Adding " + url + " with depth: " + str(depth+1)
+                        self.urls.append((depth+1, url))
 
 def getLinks(url):
     page = Fetcher(url)
-    page.fetch()
+    page.fetch(0)
     for i, url in enumerate(page):
         print "%d. %s" % (i, url)
 
