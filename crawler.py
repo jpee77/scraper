@@ -19,6 +19,7 @@ __name__ = "Google Chrome"
 AGENT = "%s/%s" % (__name__, __version__)
 
 class Crawler(object):
+#""" Crawler encompasses many pages """
 
     def __init__(self, root, depth, verbose, extrap, locked=True):
         self.root = root
@@ -99,11 +100,11 @@ class Crawler(object):
                         self.followed += 1
                         page = Fetcher(theurl, self.host, self.verbose)
                         page.fetch(url_depth)
-                        for i, theurl in enumerate(page): #this uses __get__item on Fetcher objects and returns fetcher.urls tuple 
-                            if theurl not in self.urls: #check if url is already followed, if not put in Q
+                        for i, depurl in enumerate(page): #this uses __get__item on Fetcher objects and returns fetcher.urls tuple 
+                            if depurl not in self.urls: #check if url is already followed, if not put in Q
                                 self.links += 1
-                                q.put(theurl)
-                                self.urls.append(theurl) 
+                                q.put(depurl)
+                                self.urls.append(depurl) 
 
                     else:
                         if self.verbose:
@@ -112,8 +113,10 @@ class Crawler(object):
                 except Exception, e:
                     print "ERROR: Can't process url '%s' (%s)" % (url, e)
                     print format_exc()
+        return Truec
 
 class Fetcher(object):
+#""" Remember Fetcher is per page """
 
     def __init__(self, url, root, verbose):
         self.url = url
@@ -171,13 +174,21 @@ class Fetcher(object):
                 href = tag.get("href")
                 if href is not None:
                     url = urlparse.urljoin(self.url, escape(href))
-                    if url not in self:
-                        if self.verbose:
-                            print "[-] Adding " + url + " with depth: " + str(depth+1)
+                    
+                    if url not in (url for depth, url in self.urls):
+  
                         if self.checkSameRoot(url, self.root):
                             self.urls.append((0, url))
-                        else:
-                            self.urls.append((depth+1, url))
+                            if self.verbose: 
+                                print "[-] Adding " + url + " with depth: 0"
+                            
+                        if self.verbose: 
+                            print "[-] Adding " + url + " with depth: " + str(depth+1)
+                            
+                        self.urls.append((depth+1, url))
+
+                    else:
+                        print "[D] Duplicate found"
 
 def getLinks(url):
     page = Fetcher(url)
