@@ -40,27 +40,21 @@ class Crawler(object):
                 return True
         return False
 
-    def compare_domains(self, url1, url2):
-        #url1 is the root
+    def isSameDomain(self, url1, url2):
         try:
             if url1 == url2:
                 return True
-            if url1[-1] == url2[-1] and url1[-2] == url2[-2] and self.extrap:
-                #f = open("subdomains.log", mode="a")
-                #f.write(url2 + '\n')
-                #f.close()
+            if urlparse.urlparse(url1).netloc == urlparse.urlparse(url2).netloc:
                 return True
             else:
                 return False
         except:
-            return False
-            pass
+            raise
+
         
     def crawl(self):
 
-        if self.verbose:
-            print "[-] Opening Fetcher with root: " + self.root + " and host: " + self.host
-        page = Fetcher(self.root, self.host, self.verbose)
+        page = Fetcher(self.root, self.host, self.depth, self.extrap, self.verbose)
         page.fetch(0)
         q = Queue()
         for url in page.urls:
@@ -70,7 +64,10 @@ class Crawler(object):
 
         while True:
             try:
-                url = q.get()
+                url = q.get(timeout=10)
+                if q.qsize() == 0:
+                    print "Size of the Q: " + str(q.qsize())
+                time.sleep(2) #TODO: stopping here
             except QueueEmpty:
                 break
 
@@ -78,28 +75,24 @@ class Crawler(object):
             url_depth = url[0]
             theurl = url[1]
             
-            if url_depth > self.depth:
-                if self.verbose:
-                    print "[-] Breaking based on a depth limit of: " + str(self.depth)
-                break
-
-
-            #followed = list of whats been followed
-            #urls = whats been placed in the Q    
             if theurl not in followed and not self.blacklisted(theurl):
                 try:
                     host = urlparse.urlparse(theurl)[1]
                     if host is not None:
                         if len(host) == 0:
                             continue
-                    if self.verbose: print "[-] host: " + host + " || self.host: " + self.host
+                    
+                    if self.verbose: 
+                        print "[-] host: " + host + " || self.host: " + self.host
                                    
-                    if self.locked and self.compare_domains(self.host, host):
-                        if self.verbose: print "[-] Enumerating " + host
+                    if self.extrap or not self.extrap and self.isSameDomain(self.host, host):
+
                         followed.append(theurl)
                         self.followed += 1
-                        page = Fetcher(theurl, self.host, self.verbose)
+                        
+                        page = Fetcher(theurl, self.host, self.depth, self.extrap, self.verbose)
                         page.fetch(url_depth)
+                        
                         for i, depurl in enumerate(page): #this uses __get__item on Fetcher objects and returns fetcher.urls tuple 
                             if depurl not in self.urls: #check if url is already followed, if not put in Q
                                 self.links += 1
@@ -113,15 +106,19 @@ class Crawler(object):
                 except Exception, e:
                     print "ERROR: Can't process url '%s' (%s)" % (url, e)
                     print format_exc()
-        return Truec
+            else:
+                print "[-] NOT FOLLOWING: " + theurl
+        return True
 
 class Fetcher(object):
 #""" Remember Fetcher is per page """
 
-    def __init__(self, url, root, verbose):
+    def __init__(self, url, root, depth, extrap, verbose):
         self.url = url
         self.urls = []
         self.root = root
+        self.depth= depth
+        self.extrap = extrap
         self.verbose = verbose
 
     def __getitem__(self, x):
@@ -130,11 +127,16 @@ class Fetcher(object):
     def _addHeaders(self, request):
         request.add_header("User-Agent", AGENT)
         
-    def checkSameRoot(self, url1, url2):
-        if urlparse.urlparse(url1)[1] == url2:
-            return True
-        else:
-            return False
+    def isSameDomain(self, url1, url2):
+        try:
+            if url1 == url2:
+                return True
+            if urlparse.urlparse(url1).netloc == urlparse.urlparse(url2).netloc:
+                return True
+            else:
+                return False
+        except:
+            raise
         
     def open(self):
         url = self.url
@@ -171,24 +173,30 @@ class Fetcher(object):
                 print >> sys.stderr, "ERROR: %s" % error
                 tags = []
             for tag in tags:
+                        
                 href = tag.get("href")
                 if href is not None:
-                    url = urlparse.urljoin(self.url, escape(href))
                     
+                    url = urlparse.urljoin(self.url, escape(href))
+
                     if url not in (url for depth, url in self.urls):
-  
-                        if self.checkSameRoot(url, self.root):
-                            self.urls.append((0, url))
-                            if self.verbose: 
-                                print "[-] Adding " + url + " with depth: 0"
+                        
+                        if self.extrap or not self.extrap and self.isSameDomain(url, 'http://' + self.root):
                             
-                        if self.verbose: 
-                            print "[-] Adding " + url + " with depth: " + str(depth+1)
-                            
-                        self.urls.append((depth+1, url))
+                            if self.isSameDomain(url, self.root):
+                                if self.verbose: 
+                                    print "[-] Adding " + url + " with depth: 0"
+                                self.urls.append((0, url))
+                                
+                            else:
+                                if depth < self.depth:
+                                    if self.verbose: 
+                                        print "[-] Adding " + url + " with depth: " + str(depth+1)
+                                    self.urls.append((depth+1, url))
+                                pass
 
                     else:
-                        print "[D] Duplicate found"
+                        print "[D] Duplicate found: " + url
 
 def getLinks(url):
     page = Fetcher(url)
