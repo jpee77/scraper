@@ -109,7 +109,7 @@ def main():
         f = open(infile,mode="r")
         for myurl in f:
             myurl = myurl.strip()
-            if verbose: print "[-] Url: " + myurl + '.'
+
             sTime = time.time()
         
             print "Crawling %s (Max Depth: %d)" % (myurl, depth)
@@ -123,9 +123,11 @@ def main():
             print "Found:    %d" % crawler.links
             print "Followed: %d" % crawler.followed
             print "Stats:    (%d/s after %0.2fs)" % (int(math.ceil(float(crawler.links) / tTime)), tTime)
+            
+            rep = report.Report(crawler.host, crawler.urls) #crawler.urls is a tuple
+            rep.send_redis_relations()
         f.close()
-        rep = report.Report(crawler.host, crawler.urls)
-        print rep.getEmails()
+
     
     elif single_page and url:
             getLinks(url)

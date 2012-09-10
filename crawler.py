@@ -173,7 +173,7 @@ class Fetcher(object):
                 #Here we pass the soup off to the contact information scanner
                 ci = contactinfo.ContactInfo(content_fd,self.root,self.verbose)
                 #ret will be None or a list
-                match_res = ci.scanMail()
+                mail_ret = ci.scan_mail()
                 
                 tags = soup('a')
             except urllib2.HTTPError, error:

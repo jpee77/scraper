@@ -14,7 +14,7 @@ class ContactInfo(object):
         self.root = root
         self.matches = []
 
-    def scanMail(self):
+    def scan_mail(self):
         mailsigs = ['\w+&#64;[a-z,A-Z,\.,0-9]+','\w+@[a-z,A-Z,0-9,\.]+\.\w+', '\w+ at \w+\.(com,net,org)', '\w+ \[.+\]\ \w+\.(com,net,org)', 'mailto:\w+@\w+.(com,net,org)']
         
         if self.verbose: print "[-] Scanning for mail information..."
@@ -42,10 +42,11 @@ class ContactInfo(object):
             "[v] soup_content was empty when passed to " + __name__
         
         if self.matches is not None: 
-            r_server = db.open_db()
-            for m in self.matches:
-                r_server.sadd("emails:"+self.root, m)
-                if self.verbose: print "[redis] Adding to set " + "emails:"+self.root #TODO: Make this operate through report.py be returning a list
+            return self.matches
+            #r_server = db.open_db()
+            #for m in self.matches:
+            #    r_server.sadd("emails:"+self.root, m)
+            #    if self.verbose: print "[redis] Adding to set " + "emails:"+self.root #TODO: Make this operate through report.py be returning a list
         else:
             return None
                 
