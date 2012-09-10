@@ -2,6 +2,10 @@ import redis
 
 r_server = None
 
+def test_redis_open():
+    global r_server 
+    return r_server.ping()
+
 def open_db():
     global r_server
     if not r_server:

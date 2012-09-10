@@ -132,30 +132,27 @@ def main():
             raise SystemExit, 0
     elif url:
         sTime = time.time()
-        #TODO: Change structure of redis to rootdom -> subnodes -> emails
-    
+
         print "Crawling %s (Max Depth: %d)" % (url, depth)
         crawler = Crawler(url, depth, verbose, extrap)
         crawler.crawl()
     
         eTime = time.time()
-        tTime = eTime - sTime #start time minus end time
+        tTime = eTime - sTime 
     
         print "Found:    %d" % crawler.links
         print "Followed: %d" % crawler.followed
         print "Stats:    (%d/s after %0.2fs)" % (int(math.ceil(float(crawler.links) / tTime)), tTime)
         print "[-] rootdom: " + crawler.host
-        rep = report.Report(crawler.host, crawler.urls) #passing in a tuple with depth
-        rep.getRelations()
-        #print rep.getEmails()
+        
+        rep = report.Report(crawler.host, crawler.urls) #crawler.urls is a tuple
+        rep.send_redis_relations()
 
 if __name__ == "__main__":
     #for x in pull_info("linkpart.csv"): print x
     red_serv = db.open_db()
-    try:
-        red_serv.set("test-key", 123456)
-    except(redis.exceptions.ConnectionError): 
-        print "[!] Redis server not listening on port 6379"
-        sys.exit(1)
-    main()
+    if db.test_redis_open():
+        main()
+    else:
+        print "[-] Redis isn't running"
     

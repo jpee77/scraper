@@ -45,7 +45,7 @@ class ContactInfo(object):
             r_server = db.open_db()
             for m in self.matches:
                 r_server.sadd("emails:"+self.root, m)
-                if self.verbose: print "[redis] Adding to set " + "emails:"+self.root
+                if self.verbose: print "[redis] Adding to set " + "emails:"+self.root #TODO: Make this operate through report.py be returning a list
         else:
             return None
                 

@@ -19,8 +19,12 @@ __name__ = "Google Chrome"
 AGENT = "%s/%s" % (__name__, __version__)
 
 class Crawler(object):
-#""" Crawler encompasses many pages """
-
+    '''
+    Crawler creates a FIFO queue and a list called followed
+    It uses Fetcher to retrive urls on a per page basis and adds them to the top of the Queue while 
+    pulling from the bottom
+    '''
+    
     def __init__(self, root, depth, verbose, extrap, locked=True):
         self.root = root
         self.extrap = extrap
@@ -40,7 +44,7 @@ class Crawler(object):
                 return True
         return False
 
-    def isSameDomain(self, url1, url2):
+    def is_same_domain(self, url1, url2):
         try:
             if url1 == url2:
                 return True
@@ -55,7 +59,7 @@ class Crawler(object):
     def crawl(self):
 
         page = Fetcher(self.root, self.host, self.depth, self.extrap, self.verbose)
-        page.fetch(0)
+        page.fetch(0, None)
         q = Queue()
         for url in page.urls:
             q.put(url) #TODO: Ensure this is unique
@@ -65,9 +69,9 @@ class Crawler(object):
         while True:
             try:
                 url = q.get(timeout=10)
+                print "Size of the Q: " + str(q.qsize())
                 if q.qsize() == 0:
                     print "Size of the Q: " + str(q.qsize())
-                time.sleep(2) #TODO: stopping here
             except QueueEmpty:
                 break
 
@@ -85,13 +89,13 @@ class Crawler(object):
                     if self.verbose: 
                         print "[-] host: " + host + " || self.host: " + self.host
                                    
-                    if self.extrap or not self.extrap and self.isSameDomain(self.host, host):
+                    if self.extrap or not self.extrap and self.is_same_domain(self.host, host):
 
                         followed.append(theurl)
                         self.followed += 1
                         
                         page = Fetcher(theurl, self.host, self.depth, self.extrap, self.verbose)
-                        page.fetch(url_depth)
+                        page.fetch(url_depth, theurl)
                         
                         for i, depurl in enumerate(page): #this uses __get__item on Fetcher objects and returns fetcher.urls tuple 
                             if depurl not in self.urls: #check if url is already followed, if not put in Q
@@ -111,7 +115,9 @@ class Crawler(object):
         return True
 
 class Fetcher(object):
-#""" Remember Fetcher is per page """
+    '''
+    Fetcher is per page url retrival mechanism that is iterable and feeds links back to Crawler
+    '''
 
     def __init__(self, url, root, depth, extrap, verbose):
         self.url = url
@@ -127,7 +133,14 @@ class Fetcher(object):
     def _addHeaders(self, request):
         request.add_header("User-Agent", AGENT)
         
-    def isSameDomain(self, url1, url2):
+    def is_blacklisted(self,url):
+        extensions = ['bz2', 'gzip', 'tar', 'zip', 'rar', 'iso', 'avi', 'mov', 'javascript']
+        for ex in extensions:
+            if ex in url:
+                return True
+        return False
+        
+    def is_same_domain(self, url1, url2):
         try:
             if url1 == url2:
                 return True
@@ -148,7 +161,7 @@ class Fetcher(object):
             return None
         return (request, handle)
 
-    def fetch(self, depth): 
+    def fetch(self, depth, parent): 
         request, handle = self.open()
         self._addHeaders(request)
         if handle:
@@ -175,25 +188,32 @@ class Fetcher(object):
             for tag in tags:
                         
                 href = tag.get("href")
+                
+                if href.startswith('/'):
+                    href = 'http://' + self.root + href
+                
                 if href is not None:
                     
                     url = urlparse.urljoin(self.url, escape(href))
 
-                    if url not in (url for depth, url in self.urls):
+                    if url not in (url for depth, url, parent in self.urls) and not self.is_blacklisted(url):
                         
-                        if self.extrap or not self.extrap and self.isSameDomain(url, 'http://' + self.root):
+                        if self.extrap or not self.extrap and self.is_same_domain(url, 'http://' + self.root):
                             
-                            if self.isSameDomain(url, self.root):
+                            if self.is_same_domain(url, 'http://' + self.root):
                                 if self.verbose: 
                                     print "[-] Adding " + url + " with depth: 0"
-                                self.urls.append((0, url))
+                                self.urls.append((0, url, parent))
                                 
                             else:
                                 if depth < self.depth:
                                     if self.verbose: 
                                         print "[-] Adding " + url + " with depth: " + str(depth+1)
-                                    self.urls.append((depth+1, url))
+                                    self.urls.append((depth+1, url, parent))
                                 pass
+                        else:
+                            if self.verbose:
+                                print "[-] Not following url for extrap reasons: " + url
 
                     else:
                         print "[D] Duplicate found: " + url
