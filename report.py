@@ -23,16 +23,22 @@ class Report:
         print "\n\n[redis] Using redis index 0"
         
         for u in self.urls:
-            self.hash_name = 'url-' + urllib.quote(u)
             
             print "[redis] Storing url: " + str(u[1])[:20] + "... and parent: " + str(u[2])[:20] + "... at depth: " + str(u[0])
             depth = str(u[0])
-            url = str(u[1]) 
+            url = urllib.quote(str(u[1]))
             parent = str(u[2]) 
+            emails = str(u[3])
+            
+            self.hash_name = url
             
             self.r.hset(self.hash_name, "url", url)
             self.r.hset(self.hash_name, "parent", parent)
             self.r.hset(self.hash_name, "depth", depth)
             self.r.hset(self.hash_name, "date", datetime.date.today())
+            
+            if not emails == "":
+                for e in emails:
+                    self.r.rpush('email::' +url, e)
             
             

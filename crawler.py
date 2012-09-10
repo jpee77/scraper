@@ -189,27 +189,30 @@ class Fetcher(object):
                         
                 href = tag.get("href")
                 
-                if href.startswith('/'):
-                    href = 'http://' + self.root + href
-                
                 if href is not None:
+                    if href.startswith('/'):
+                        href = 'http://' + self.root + href
                     
                     url = urlparse.urljoin(self.url, escape(href))
 
-                    if url not in (url for depth, url, parent in self.urls) and not self.is_blacklisted(url):
+                    if url not in (url for depth, url, parent, mail_ret in self.urls) and not self.is_blacklisted(url):
                         
                         if self.extrap or not self.extrap and self.is_same_domain(url, 'http://' + self.root):
                             
                             if self.is_same_domain(url, 'http://' + self.root):
                                 if self.verbose: 
                                     print "[-] Adding " + url + " with depth: 0"
-                                self.urls.append((0, url, parent))
+                                
+                                self.urls.append((0, url, parent, mail_ret))
+
                                 
                             else:
                                 if depth < self.depth:
                                     if self.verbose: 
                                         print "[-] Adding " + url + " with depth: " + str(depth+1)
-                                    self.urls.append((depth+1, url, parent))
+
+                                    self.urls.append((depth+1, url, parent, mail_ret))
+
                                 pass
                         else:
                             if self.verbose:

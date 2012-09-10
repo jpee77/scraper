@@ -31,7 +31,7 @@ class ContactInfo(object):
                         if matchObj:
                             self.matches.append(matchObj.group())
                             if self.verbose:
-                                print "[match] " + match_sig + " " + matchObj.group() #+ " line: " + line 
+                                print "[contact_info] " + match_sig + " " + matchObj.group() #+ " line: " + line 
                         else:
                             pass
                             #print "No matches for @"
@@ -39,7 +39,7 @@ class ContactInfo(object):
                     print "not a line or empty"
                     pass #print line
         else:
-            "[v] soup_content was empty when passed to " + __name__
+            "[-] soup_content was empty when passed to " + __name__
         
         if self.matches is not None: 
             return self.matches
@@ -48,7 +48,7 @@ class ContactInfo(object):
             #    r_server.sadd("emails:"+self.root, m)
             #    if self.verbose: print "[redis] Adding to set " + "emails:"+self.root #TODO: Make this operate through report.py be returning a list
         else:
-            return None
+            return "None"
                 
     
     def scanPhone(self, soup):
