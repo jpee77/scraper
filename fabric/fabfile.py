@@ -2,17 +2,18 @@ from __future__ import with_statement
 from fabric.api import *
 from fabric.contrib.console import confirm
 from fabric.operations import sudo
+from paramiko import RSAKey
 
 env.roledefs = {
     'test': ['localhost'],
-    'thomasnet': ['justin_tnet_sudo@ps117434.dreamhostps.com'],
+    'aws': ['ubuntu@ec2-107-22-132-139.compute-1.amazonaws.com'],
     'staging': [''],
     'production': ['']
 } 
 
 def dev_server():
-    env.user = 'justin_tnet_sudo'
-    env.hosts = ['ps117434.dreamhostps.com']
+    env.user = 'ubuntu'
+    env.hosts = ['ec2-107-22-132-139.compute-1.amazonaws.com']
 
 def install_req_apt():
     sudo("export DEBIAN_FRONTEND=noninteractive")
@@ -38,6 +39,11 @@ def push():
 def git_it():
     commit()
     push()
+    
+def trac():
+    sudo("sudo apt-get install python python-setuptools python-genshi")
+    sudo("easy_install Trac==1.0")
+    sudo("trac-admin /opt/trac initenv")
     
 def deploy_first():
 

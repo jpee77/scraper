@@ -74,10 +74,6 @@ def parse_options():
     parser.add_option("-v", "--verbose",
             action="store_true", default=False, dest="verbose",
             help="Enable verbose mode")
-    
-    parser.add_option("-s", "--single",
-            action="store_true", default=False, dest="single_page",
-            help="Get links for specified url only")
 
     parser.add_option("-d", "--depth",
             action="store", type="int", default=30, dest="depth",
@@ -105,39 +101,34 @@ def main():
     depth = opts.depth
     infile = opts.file
     url = opts.url
-    single_page = opts.single_page
     extrap = opts.extrap
     limit = opts.limit
     rootdom = ""
+    
 
     #open file reader here
     if infile:
-        f = open(infile,mode="r")
-        for myurl in f:
-            myurl = myurl.strip()
-
-            sTime = time.time()
-        
-            print "Crawling %s (Max Depth: %d)" % (myurl, depth)
-            crawler = Crawler(myurl, depth, verbose, extrap, limit)
-            crawler.crawl()
-            print "\n".join(crawler.urls)
-        
-            eTime = time.time()
-            tTime = eTime - sTime #start time minus end time
-        
-            print "Found:    %d" % crawler.links
-            print "Followed: %d" % crawler.followed
-            print "Stats:    (%d/s after %0.2fs)" % (int(math.ceil(float(crawler.links) / tTime)), tTime)
-            
-            rep = report.Report(crawler.host, crawler.urls) #crawler.urls is a tuple
-            rep.send_redis_relations()
-        f.close()
-
+        with open(infile,mode="r") as f:
+            for myurl in f:
+                myurl = myurl.strip()
     
-    elif single_page and url:
-            getLinks(url)
-            raise SystemExit, 0
+                sTime = time.time()
+            
+                print "Crawling %s (Max Depth: %d)" % (myurl, depth)
+                crawler = Crawler(myurl, depth, verbose, extrap, limit)
+                crawler.crawl()
+            
+                eTime = time.time()
+                tTime = eTime - sTime #start time minus end time
+            
+                print "Found:    %d" % crawler.links
+                print "Followed: %d" % crawler.followed
+                print "Stats:    (%d/s after %0.2fs)" % (int(math.ceil(float(crawler.links) / tTime)), tTime)
+                
+                rep = report.Report(crawler.host, crawler.urls) #crawler.urls is a tuple
+                rep.send_redis_relations()
+                rep.output_csv_relations()
+
     elif url:
         sTime = time.time()
 
