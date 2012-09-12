@@ -42,9 +42,8 @@ class ContactInfo(object):
                     matchObj = thomas_regex.search(url)
                     if matchObj:
                         thomas_ctr += 1
-                        print "[THOMASNET MATCH] " + matchObj.group()
-                
-            self.r.sadd('tcount::'+self.url ,thomas_ctr)
+
+            self.r.set("tcount:%s" % self.url, thomas_ctr)
                 
 
     def scan_mail(self):
@@ -76,14 +75,11 @@ class ContactInfo(object):
         
         if self.matches is not None: 
             for e in self.matches:
-                logging.debug("[redis] pushing email: %s" % e)
-                self.r.rpush('email::' + self.url, e)
-                
-            for e in self.matches:
-                logging.debug("[redis] pushing emails to one list: %s" % e)
-                self.r.rpush('email:' +urllib.quote(self.root), e)
+                #Email list per email and one holistic emails::self.root based set
+                if self.r.sadd("emails::%s" % self.root, e):
+                    logging.debug("[redis] pushing email: %s" % e)
+                    self.r.sadd("emails::%s" % self.url, e)
 
-            
         else:
             return "None"
                 

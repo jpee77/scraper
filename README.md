@@ -10,14 +10,18 @@ scraper is a web crawler that gathers specific information
 
 For time keeping: git commit -m "Remove some extra whitespace f:15"
 
+TODO: Redis Pipelines
+    #p = self.r.pipeline()
+    #for key in keys:
+    #    p.hgetall(key)
+    #
+    #for h in p.execute():
+    #    print h
+        
 TODO: Create a breakdown of link hits and reporting and output to timestamped csv
   --output csv   [ searched url ] [ link on page ] [ number of times this link is shown  ] [ number of links containing domain ]
 
 TODO: Add remote error reporting for exceptions
-
-TODO: Depth 3 takes ages
-
-BUG: When accessing invalid links the program stalls out - threading waits at the Q for seemingly nothing? http://localhost/www.thomasnet.com
 
 
 =======================

@@ -61,6 +61,8 @@ class Crawler(object):
 
         page = Fetcher(self.root, self.host, self.depth, self.extrap, self.verbose)
         page.fetch(0, self.root)
+        self.urls.append((0, self.root, None))
+        
         q = Queue(maxsize=self.limit)
         
         for i, url in enumerate(page.urls):

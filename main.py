@@ -154,6 +154,7 @@ def main():
         
         rep = report.Report(crawler.host, crawler.urls) #crawler.urls is a tuple
         rep.send_redis_relations()
+        rep.output_csv_relations()
 
 if __name__ == "__main__":
     #for x in pull_info("linkpart.csv"): print x
