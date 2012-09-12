@@ -15,23 +15,30 @@ class Report:
     def send_redis_relations(self):
         print "[redis] Using redis index 0"
         
-        for u in self.urls:
-            
-            logging.debug("[redis] storing url: %s and parent: %s at depth: %d" % (str(u[1])[:40], str(u[2])[:20], u[0]) )
-
-            depth = str(u[0])
-            url = urllib.quote(str(u[1]))
-            parent = str(u[2])
-            
-            self.hash_name = url 
-            
-            if self.r.sadd("%s::urls" % self.root, url):
-                self.r.hset(self.hash_name, "url", url)
-                self.r.hset(self.hash_name, "parent", parent)
-                self.r.hset(self.hash_name, "depth", depth)
-                self.r.hset(self.hash_name, "date", datetime.date.today())
-            
-        return True
+        try:
+            for u in self.urls:
+                
+                logging.debug("[redis] storing url: %s and parent: %s at depth: %d" % (str(u[1])[:40], str(u[2])[:20], u[0]) )
+    
+                depth = str(u[0])
+                url = urllib.quote(str(u[1]))
+                parent = str(u[2])
+                
+                self.hash_name = url 
+                
+                if self.r.sadd("%s::urls" % self.root, url):
+                    self.r.hset(self.hash_name, "url", url)
+                    self.r.hset(self.hash_name, "parent", parent)
+                    self.r.hset(self.hash_name, "depth", depth)
+                    self.r.hset(self.hash_name, "date", datetime.date.today())
+                
+            return True
+        
+        except UnicodeEncodeError:
+            pass
+        
+        except:
+            raise
     
     def output_csv_relations(self):
 
