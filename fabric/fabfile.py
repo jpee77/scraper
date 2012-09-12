@@ -32,10 +32,10 @@ def commit():
     local("git add -p && git commit")
 
 def push():
-    local("git push")
+    local("branch newQ")
+    local("git push origin")
 
-def prepare_deploy():
-    test()
+def git_it():
     commit()
     push()
     

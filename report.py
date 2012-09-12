@@ -2,6 +2,7 @@ import db
 import redis
 import datetime
 import urllib
+import logging
 
 class Report:
     def __init__(self, root, urls):
@@ -20,15 +21,15 @@ class Report:
         return self.r.smembers("emails:"+self.root)
     
     def send_redis_relations(self):
-        print "\n\n[redis] Using redis index 0"
+        print "[redis] Using redis index 0"
         
         for u in self.urls:
             
-            print "[redis] Storing url: " + str(u[1])[:20] + "... and parent: " + str(u[2])[:20] + "... at depth: " + str(u[0])
+            logging.debug("[redis] storing url: %s and parent: %s at depth: %d" % (str(u[1])[:40], str(u[2])[:20], u[0]) )
+
             depth = str(u[0])
             url = urllib.quote(str(u[1]))
-            parent = str(u[2]) 
-            emails = str(u[3])
+            parent = str(u[2])
             
             self.hash_name = url
             
@@ -37,8 +38,6 @@ class Report:
             self.r.hset(self.hash_name, "depth", depth)
             self.r.hset(self.hash_name, "date", datetime.date.today())
             
-            if not emails == "":
-                for e in emails:
-                    self.r.rpush('email::' +url, e)
+        return True
             
             

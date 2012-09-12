@@ -7,10 +7,12 @@ import report
 import db
 from crawler import *
 import redis
+import logging
 
 USAGE = "%prog [options] <url>"
-VERSION = "%prog v0.1" 
+VERSION = "%prog v0.1"
 
+logging.basicConfig(level=logging.DEBUG) 
 
 def writeOutSeo(self):
     """    import csv
@@ -61,10 +63,13 @@ def parse_options():
             action="store_true", default=False, dest="quiet",
             help="Enable quiet mode")
     
+    parser.add_option("-l", "--limit",
+            action="store", type="int", default=30, dest="limit",
+            help="Limit the depth of the Queue")
+    
     parser.add_option("-e", "--extrap",
         action="store_true", default=False, dest="extrap",
         help="Extrapolate url crawling to other domains")
-
 
     parser.add_option("-v", "--verbose",
             action="store_true", default=False, dest="verbose",
@@ -102,6 +107,7 @@ def main():
     url = opts.url
     single_page = opts.single_page
     extrap = opts.extrap
+    limit = opts.limit
     rootdom = ""
 
     #open file reader here
@@ -113,8 +119,8 @@ def main():
             sTime = time.time()
         
             print "Crawling %s (Max Depth: %d)" % (myurl, depth)
-            crawler = Crawler(myurl, depth, verbose, extrap)
-            rootdom = crawler.crawl()
+            crawler = Crawler(myurl, depth, verbose, extrap, limit)
+            crawler.crawl()
             print "\n".join(crawler.urls)
         
             eTime = time.time()
@@ -136,16 +142,15 @@ def main():
         sTime = time.time()
 
         print "Crawling %s (Max Depth: %d)" % (url, depth)
-        crawler = Crawler(url, depth, verbose, extrap)
+        crawler = Crawler(url, depth, verbose, extrap, limit)
         crawler.crawl()
     
         eTime = time.time()
         tTime = eTime - sTime 
     
-        print "Found:    %d" % crawler.links
+        print "Found:    %d" % crawler.links #TODO: This number is crawler.self.links and is not correct
         print "Followed: %d" % crawler.followed
         print "Stats:    (%d/s after %0.2fs)" % (int(math.ceil(float(crawler.links) / tTime)), tTime)
-        print "[-] rootdom: " + crawler.host
         
         rep = report.Report(crawler.host, crawler.urls) #crawler.urls is a tuple
         rep.send_redis_relations()
@@ -156,5 +161,5 @@ if __name__ == "__main__":
     if db.test_redis_open():
         main()
     else:
-        print "[-] Redis isn't running"
+        logging.debug("redis server not running")
     

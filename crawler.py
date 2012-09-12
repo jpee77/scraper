@@ -6,6 +6,7 @@ import urllib2
 import urlparse
 import contactinfo
 import db
+import logging
 
 from cgi import escape
 from traceback import format_exc
@@ -25,7 +26,7 @@ class Crawler(object):
     pulling from the bottom
     '''
     
-    def __init__(self, root, depth, verbose, extrap, locked=True):
+    def __init__(self, root, depth, verbose, extrap, limit, locked=False):
         self.root = root
         self.extrap = extrap
         self.depth = depth
@@ -35,7 +36,8 @@ class Crawler(object):
         self.urls = []
         self.links = 0
         self.followed = 0
-        self.rootdom = ""
+        self.rootdom = "" 
+        self.limit = limit
         
     def blacklisted(self,url):
         extensions = ['bz2', 'gzip', 'tar', 'zip', 'rar', 'iso', 'avi', 'mov', 'javascript']
@@ -55,23 +57,27 @@ class Crawler(object):
         except:
             raise
 
-        
     def crawl(self):
 
         page = Fetcher(self.root, self.host, self.depth, self.extrap, self.verbose)
-        page.fetch(0, None)
-        q = Queue()
-        for url in page.urls:
-            q.put(url) #TODO: Ensure this is unique
+        page.fetch(0, self.root)
+        q = Queue(maxsize=self.limit)
+        
+        for i, url in enumerate(page.urls):
+            if i < self.limit:
+                self.urls.append(url)
+                q.put(url, block=False) #TODO: Ensure this is unique
+            if i == self.limit:
+                self.locked = True
+                
         followed = [self.root]
-
 
         while True:
             try:
                 url = q.get(timeout=10)
-                print "Size of the Q: " + str(q.qsize())
-                if q.qsize() == 0:
-                    print "Size of the Q: " + str(q.qsize())
+                logging.debug("size of the Q: %d" % q.qsize() ) 
+                if q.qsize() > self.limit:
+                    break
             except QueueEmpty:
                 break
 
@@ -86,8 +92,7 @@ class Crawler(object):
                         if len(host) == 0:
                             continue
                     
-                    if self.verbose: 
-                        print "[-] host: " + host + " || self.host: " + self.host
+                    logging.debug("host: %s self.host: %s" % (host, self.host) )
                                    
                     if self.extrap or not self.extrap and self.is_same_domain(self.host, host):
 
@@ -100,19 +105,24 @@ class Crawler(object):
                         for i, depurl in enumerate(page): #this uses __get__item on Fetcher objects and returns fetcher.urls tuple 
                             if depurl not in self.urls: #check if url is already followed, if not put in Q
                                 self.links += 1
-                                q.put(depurl)
-                                self.urls.append(depurl) 
+                                
+                                if not self.locked:
+                                    q.put(depurl, block=False)
+                                    self.urls.append(depurl) 
+                                    
+                                    if q.qsize() == self.limit:
+                                        self.locked = True
 
                     else:
-                        if self.verbose:
-                            print "[-] Not following: " + urlparse.urlparse(theurl)[1]
+                        logging.debug("not following %s" % urlparse.urlparse(theurl)[1])
                         
                 except Exception, e:
-                    print "ERROR: Can't process url '%s' (%s)" % (url, e)
-                    print format_exc()
+                    logging.critical("ERROR: Can't process url '%s' (%s)" % (url, e))
+                    logging.critical(format_exc())
             else:
-                print "[-] NOT FOLLOWING: " + theurl
-        return True
+                logging.debug("not following %s" % theurl)
+        
+        return self.host
 
 class Fetcher(object):
     '''
@@ -126,6 +136,7 @@ class Fetcher(object):
         self.depth= depth
         self.extrap = extrap
         self.verbose = verbose
+        self.thomas_count = 0
 
     def __getitem__(self, x):
         return self.urls[x]
@@ -154,7 +165,7 @@ class Fetcher(object):
     def open(self):
         url = self.url
         try:
-            if self.verbose: print "[-] Opening url: " + url
+            logging.debug("opening url: %s" % url)
             request = urllib2.Request(url)
             handle = urllib2.build_opener()
         except IOError:
@@ -164,27 +175,43 @@ class Fetcher(object):
     def fetch(self, depth, parent): 
         request, handle = self.open()
         self._addHeaders(request)
+        
+        content_cache = []
+        
         if handle:
             try:
-                content = unicode(handle.open(request,timeout=10).read(), "utf-8",errors="replace")
-                content_fd = handle.open(request,timeout=10)
-                soup = BeautifulSoup(content)
+
+                #This function returns a file-like object with two additional methods
+                content = handle.open(request,timeout=260)
+                for line in content:
+                    content_cache.append(line)
                 
-                #Here we pass the soup off to the contact information scanner
-                ci = contactinfo.ContactInfo(content_fd,self.root,self.verbose)
-                #ret will be None or a list
+                soup = BeautifulSoup( unicode('\n'.join(content_cache), "utf-8",errors="replace") )
+                
+                #Could submit to redis from contact_info
+                ci = contactinfo.ContactInfo(content_cache, self.root, self.url, self.verbose)
+                thomas_count = ci.find_thomas()
                 mail_ret = ci.scan_mail()
                 
                 tags = soup('a')
+                
             except urllib2.HTTPError, error:
                 if error.code == 404:
-                    print >> sys.stderr, "ERROR: %s -> %s" % (error, error.url)
+                    print '[HTTP Error] ' + self.url
+                    #print >> sys.stderr, "ERROR: %s -> %s" % (error, error.url)
                 else:
+                    print '[timed out] ' + self.url
                     print >> sys.stderr, "ERROR: %s" % error
                 tags = []
             except urllib2.URLError, error:
-                print >> sys.stderr, "ERROR: %s" % error
+                print '[Url Error] ' + self.url
+                #print >> sys.stderr, "ERROR: %s" % error
                 tags = []
+            except:
+                raise
+                print '[Timed Out] ' + self.url
+                tags = []
+                
             for tag in tags:
                         
                 href = tag.get("href")
@@ -195,31 +222,25 @@ class Fetcher(object):
                     
                     url = urlparse.urljoin(self.url, escape(href))
 
-                    if url not in (url for depth, url, parent, mail_ret in self.urls) and not self.is_blacklisted(url):
+                    if url not in (url for depth, url, parent in self.urls) and not self.is_blacklisted(url):
                         
                         if self.extrap or not self.extrap and self.is_same_domain(url, 'http://' + self.root):
                             
                             if self.is_same_domain(url, 'http://' + self.root):
-                                if self.verbose: 
-                                    print "[-] Adding " + url + " with depth: 0"
-                                
-                                self.urls.append((0, url, parent, mail_ret))
-
+                                logging.debug("adding url: %s with depth 0 to self.urls" % url)
+                                self.urls.append((0, url, parent))
                                 
                             else:
                                 if depth < self.depth:
-                                    if self.verbose: 
-                                        print "[-] Adding " + url + " with depth: " + str(depth+1)
-
-                                    self.urls.append((depth+1, url, parent, mail_ret))
+                                    logging.debug("adding url: %s with depth: %d to self.urls" % (url, depth+1))
+                                    self.urls.append((depth+1, url, parent))
 
                                 pass
                         else:
-                            if self.verbose:
-                                print "[-] Not following url for extrap reasons: " + url
+                            logging.debug("not following %s for extrap reasons" % url[:50])
 
                     else:
-                        print "[D] Duplicate found: " + url
+                        logging.debug("duplicate or blacklist found for %s" % url[:50])
 
 def getLinks(url):
     page = Fetcher(url)
