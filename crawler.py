@@ -4,9 +4,11 @@ import time
 import math
 import urllib2
 import urlparse
+import urllib
 import contactinfo
 import db
 import logging
+import redis
 
 from cgi import escape
 from traceback import format_exc
@@ -38,6 +40,16 @@ class Crawler(object):
         self.followed = 0
         self.rootdom = "" 
         self.limit = limit
+        self.r = db.open_db()
+    
+    def increment_link_hits(self, url):
+        url = urllib.quote(url)
+        if self.r.exists("hits:%s" % url):
+            self.r.incr("hits:%s" % url)
+        else:
+            self.r.set("hits:%s" % url, 1)
+        
+        return self.r.get("hits:%s" % url)
         
     def blacklisted(self,url):
         extensions = ['bz2', 'gzip', 'tar', 'zip', 'rar', 'iso', 'avi', 'mov', 'javascript']
@@ -61,11 +73,16 @@ class Crawler(object):
 
         page = Fetcher(self.root, self.host, self.depth, self.extrap, self.verbose)
         page.fetch(0, self.root)
+        
+        self.increment_link_hits(self.root)
         self.urls.append((0, self.root, None))
         
         q = Queue(maxsize=self.limit)
         
         for i, url in enumerate(page.urls):
+            myurl = url[1]
+            self.increment_link_hits(myurl)
+            
             if i < self.limit:
                 self.urls.append(url)
                 q.put(url, block=False) #TODO: Ensure this is unique
@@ -105,6 +122,9 @@ class Crawler(object):
                         page.fetch(url_depth, theurl)
                         
                         for i, depurl in enumerate(page): #this uses __get__item on Fetcher objects and returns fetcher.urls tuple 
+                            
+                            self.increment_link_hits(depurl[1])
+                            
                             if depurl not in self.urls: #check if url is already followed, if not put in Q
                                 self.links += 1
                                 
@@ -114,6 +134,7 @@ class Crawler(object):
                                     
                                     if q.qsize() == self.limit:
                                         self.locked = True
+                
 
                     else:
                         logging.debug("not following %s" % urlparse.urlparse(theurl)[1])

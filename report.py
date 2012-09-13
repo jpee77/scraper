@@ -49,7 +49,7 @@ class Report:
             seo_writer = csv.writer(f, delimiter=',',quotechar='"', quoting=csv.QUOTE_MINIMAL)
             
             seo_writer.writerow(["Scraper Report On: %s" % self.root])
-            seo_writer.writerow(['Url', 'Degree of Separation from ' + self.root, 'Links to Thomasnet.com', 'Emails' ])
+            seo_writer.writerow(['Url', 'Degree of Separation from ' + self.root, 'Links to Thomasnet.com', 'Emails', 'Link Hits' ])
             
             try:
                 for u in self.r.smembers("%s::urls" % self.root):
@@ -58,14 +58,15 @@ class Report:
                         udict = self.r.hgetall(u)
                         #print u + ' ' + str(udict)
                         tcount = str(self.r.get("tcount:%s" % u) )
+                        hitcount = self.r.get("hits:%s" % u)
                     
                         if self.r.exists("emails::%s" % u):
                             emails = self.r.smembers("emails::%s" % u)
                         
                         if emails is not None:
-                            seo_writer.writerow([u, udict['depth'], tcount, ' '.join(emails)  ])
+                            seo_writer.writerow([u, udict['depth'], tcount, ' '.join(emails), hitcount ])
                         else:
-                            seo_writer.writerow([u, udict['depth'], tcount, "None"  ])
+                            seo_writer.writerow([u, udict['depth'], tcount, "None", hitcount  ])
                 
                         
                 seo_writer.writerow(["[All emails]"])
