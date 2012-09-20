@@ -1,0 +1,23 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+	"http://www.w3.org/TR/html4/strict.dtd">
+
+<html>
+	<head>
+		<title>Scraper</title>
+		<script src="static/jquery-1.8.1.min.js"></script>
+	</head>
+	
+	<body>
+		<script>
+		  $(document).ready(function(){
+		    $("a").click(function(event){
+		      alert("As you can see, the link no longer took you to jquery.com");
+		      event.preventDefault();
+		    });
+		  });
+		</script>
+		
+		<a href="location.html">wtf</a>
+		<p>Fuck you</p>
+	</body>
+</html>

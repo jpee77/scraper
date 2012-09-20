@@ -5,14 +5,30 @@ import optparse
 import time
 import report
 import db
-from crawler import *
 import redis
 import logging
+from crawler import *
+
+from sqlite3 import dbapi2 as sqlite3
+from contextlib import closing
+from flask import Flask, request, session, g, redirect, url_for, abort, render_template, flash
+
+# configuration for flask
+DATABASE = 'flaskr.db'
+DEBUG = True
+SECRET_KEY = 'development key'
+USERNAME = 'admin'
+PASSWORD = 'default'
 
 USAGE = "%prog [options] <url>"
 VERSION = "%prog v0.1"
 
-logging.basicConfig(level=logging.DEBUG) 
+if DEBUG:
+    logging.basicConfig(level=logging.DEBUG) 
+
+app = Flask(__name__)
+app.config.from_object(__name__)
+app.config.from_envvar('FLASKR_SETTINGS', silent=True)
 
 def writeOutSeo(self):
     """    import csv
@@ -94,6 +110,30 @@ def parse_options():
        
     return opts, args
 
+def connect_db():
+    """Returns a new connection to the database."""
+    return sqlite3.connect(app.config['DATABASE'])
+
+
+def init_db():
+    """Creates the database tables."""
+    with closing(connect_db()) as db:
+        with app.open_resource('schema.sql') as f:
+            db.cursor().executescript(f.read())
+        db.commit()
+        
+@app.before_request
+def before_request():
+    """Make sure we are connected to the database each request."""
+    g.db = connect_db()
+
+
+@app.teardown_request
+def teardown_request(exception):
+    """Closes the database again at the end of the request."""
+    if hasattr(g, 'db'):
+        g.db.close()
+
 def main():
     opts, args = parse_options()
     
@@ -104,7 +144,6 @@ def main():
     extrap = opts.extrap
     limit = opts.limit
     rootdom = ""
-    
 
     #open file reader here
     if infile:
@@ -129,29 +168,17 @@ def main():
                 rep.send_redis_relations()
                 rep.output_csv_relations()
 
-    elif url:
-        sTime = time.time()
-
-        print "Crawling %s (Max Depth: %d)" % (url, depth)
-        crawler = Crawler(url, depth, verbose, extrap, limit)
-        crawler.crawl()
-    
-        eTime = time.time()
-        tTime = eTime - sTime 
-    
-        print "Found:    %d" % crawler.links #TODO: This number is crawler.self.links and is not correct
-        print "Followed: %d" % crawler.followed
-        print "Stats:    (%d/s after %0.2fs)" % (int(math.ceil(float(crawler.links) / tTime)), tTime)
-        
-        rep = report.Report(crawler.host, crawler.urls) #crawler.urls is a tuple
-        rep.send_redis_relations()
-        rep.output_csv_relations()
+@app.route('/')
+def show_entries():
+    #cur = g.db.execute('select title, text from entries order by id desc')
+    #entries = [dict(title=row[0], text=row[1]) for row in cur.fetchall()]
+    return render_template('index.html')
 
 if __name__ == "__main__":
     #for x in pull_info("linkpart.csv"): print x
-    red_serv = db.open_db()
-    if db.test_redis_open():
-        main()
-    else:
-        logging.debug("redis server not running")
+    #red_serv = db.open_db()
+    #if not db.test_redis_open():
+    #    sys.exit(1)
+
+    app.run()
     
